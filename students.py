@@ -4,6 +4,7 @@ from PIL import Image,ImageTk,ImageFilter
 from tkmacosx import Button
 from tkinter import messagebox
 import mysql.connector
+import cv2
 
 
 class Students:
@@ -194,7 +195,7 @@ class Students:
         btn1_frame=Frame(entry_frame, bd=2, bg="white", relief=RIDGE)
         btn1_frame.place(x=2, y=255, width=610, height=65)  
 
-        takephoto_btn=Button(btn1_frame, text="Take Photo",width='11c',height='2c', font=("Quartz", 13, "bold"), bg="blue", fg="white")
+        takephoto_btn=Button(btn1_frame, text="Take Photo",command=self.generate_dataset, width='11c',height='2c', font=("Quartz", 13, "bold"), bg="blue", fg="white")
         takephoto_btn.grid(row=0, column=0, padx=4)
 
         updatephoto_btn=Button(btn1_frame, text="Update Photo",width='10c',height='2c', font=("Quartz", 13, "bold"), bg="blue", fg="white")
@@ -445,8 +446,87 @@ class Students:
                                                                                                         
         self.var_radio1.set(""),
         self.var_year.set("Select Year")
-        
-        
+
+
+
+
+# ================== Take photo Samples=======================        
+    def generate_dataset(self):
+        if self.var_class.get()=="Select Class" or self.var_name.get()==" " or self.var_ID.get()==" ":
+            messagebox.showerror("Error", "All Fields Are Required", parent=self.root)
+
+        else:
+            try:
+                conn=mysql.connector.connect(host="localhost",user="root", password="gaurav", database="face_recognition")
+                my_cursor=conn.cursor()
+                my_cursor.execute ("Select * from  student")
+                myresult= my_cursor.fetchall()
+                id=0
+                for x in myresult:
+                    id+=1
+                my_cursor.execute("update student set `Name`=%s,`Father's Name`=%s,`Class`=%s,`Section`=%s,`Address`=%s,`Phone No`=%s,`Subjects`=%s,`Date of Birth`=%s,`Gender`=%s,`Email ID`=%s,`Photo`=%s,`Year`=%s where `Student ID` =%s" ,(
+
+                                                                                                                                                                                                                            self.var_name.get(),
+                                                                                                                                                                                                                            self.var_fatherName.get(),
+                                                                                                                                                                                                                            self.var_class.get(),
+                                                                                                                                                                                                                            self.var_section.get(),
+                                                                                                                                                                                                                            self.var_address.get(),
+                                                                                                                                                                                                                            self.var_phone.get(),
+                                                                                                                                                                                                                            self.var_subjects.get(),
+                                                                                                                                                                                                                            self.var_dob.get(),
+                                                                                                                                                                                                                            self.var_gender.get(),
+                                                                                                                                                                                                                            self.var_email_ID.get(),
+                                                                                                                                                                                                                            self.var_radio1.get(),
+                                                                                                                                                                                                                            self.var_year.get(),
+                                                                                                                                                                                                                            self.var_ID.get()==id+1      
+                                                                                                                                                                                                                          
+                                                                                                                                                                                                                                                    ))
+                
+                conn.commit()
+                self.fetch_Data()
+                self.reset_data()
+                conn.close()
+            
+
+    # ================ Loading face-frontal from open cv============
+                face_classifier= cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+
+                def face_crop(img):
+                    gray=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                    faces= face_classifier.detectMultiScale(gray, 1.3,5)
+                    # scaling factor= 1.3
+                    # minimum neighbor= 5
+
+                    for(x,y,w,h) in faces:
+                        face_crop= img[y:y+h, x:x+w]
+                        return face_crop
+                    
+                cap= cv2.VideoCapture(0)
+                img_id=0 
+                while True:
+                    
+                    my_frame= cap.read()
+                    if face_crop(my_frame) is not None:
+                        img_id+=1
+                        face= cv2.resize(face_crop(my_frame),(450,450))
+                        face= cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+                        file_name_path= "Data/user."+ str(id)+"."+ str(img_id)+ ".jpg"
+                        cv2.imwrite(file_name_path, face)
+                        cv2.putText(face, str(img_id),(50,50), cv2.FONT_HERSHEY_COMPLEX,2,(0,255,0),2)
+                        cv2.imshow("Cropped Face", face)
+
+                    if cv2.waitKey(1)==13 or int(img_id)==100:
+                         break
+                cap.release()
+                cv2.destroyAllWindows()
+
+                messagebox.showinfo("Result", "Generating dataset completed!!")    
+            
+            except Exception as es:
+                messagebox.showerror("Error", f"Due To:{str(es)}", parent=self.root)
+
+                
+    
 
 
              
